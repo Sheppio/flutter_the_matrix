@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -45,13 +47,27 @@ class BoardRepository extends Notifier<List<List<Color>>> {
     state = List<List<Color>>.from(board);
   }
 
-  setCell(int colIndex, int rowIndex, Color color) {
+  setCell(int colIndex, int rowIndex, Color color) async {
     _setCell(colIndex, rowIndex, color);
     _refreshState();
+    var remoteCol = await _remoteSetCell(colIndex, rowIndex, color);
+    if (remoteCol != color) {
+      _setCell(colIndex, rowIndex, remoteCol);
+      _refreshState();
+    }
+    ;
   }
 
   _setCell(int colIndex, int rowIndex, Color color) {
     board[colIndex][rowIndex] = color;
+  }
+
+  Future<Color> _remoteSetCell(int colIndex, int rowIndex, Color color) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    var rnd = Random();
+    return rnd.nextDouble() < 0.5
+        ? color
+        : Colors.primaries[rnd.nextInt(Colors.primaries.length)];
   }
 
   loadRandomPhoto() async {

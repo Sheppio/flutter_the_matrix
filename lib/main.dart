@@ -48,8 +48,6 @@ class _MyPainterState extends ConsumerState<MyPainter> {
   void initState() {
     var prims = [Colors.black, Colors.white, ...Colors.primaries];
     colors = List.generate(prims.length, (i) => [prims[i]]);
-    // colorMatrix = List.generate(cols, (i) => List.filled(rows, Colors.grey),
-    //     growable: false);
     super.initState();
   }
 
