@@ -5,13 +5,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_the_matrix/providers/board_provider.dart';
 import 'package:flutter_the_matrix/rainbow_gradient.dart';
 import 'dart:io' as io;
 import 'package:dio/dio.dart';
 
 import 'package:image/image.dart' as image;
 
-void main() => runApp(MyApp());
+void main() => runApp(ProviderScope(child: MyApp()));
 
 class MyApp extends StatelessWidget {
   @override
@@ -29,58 +31,40 @@ class MyApp extends StatelessWidget {
 
 // main.dart
 
-class MyPainter extends StatefulWidget {
+class MyPainter extends ConsumerStatefulWidget {
   @override
-  State<MyPainter> createState() => _MyPainterState();
+  ConsumerState<MyPainter> createState() => _MyPainterState();
 }
 
-class _MyPainterState extends State<MyPainter> {
-  var cols = 32;
-  var rows = 32;
+class _MyPainterState extends ConsumerState<MyPainter> {
+  //var cols = 32;
+  //var rows = 32;
   Color screenPickerColor = Colors.red;
 
-  late List<List<Color>> colorMatrix;
+  //late List<List<Color>> colorMatrix;
   late List<List<Color>> colors;
 
   @override
   void initState() {
     var prims = [Colors.black, Colors.white, ...Colors.primaries];
     colors = List.generate(prims.length, (i) => [prims[i]]);
-    colorMatrix = List.generate(cols, (i) => List.filled(rows, Colors.grey),
-        growable: false);
+    // colorMatrix = List.generate(cols, (i) => List.filled(rows, Colors.grey),
+    //     growable: false);
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    var colorMatrix = ref.watch(boardRepositoryRiverpodProvider);
+    var rows = colorMatrix.length;
+    var cols = colorMatrix[0].length;
     return Scaffold(
       appBar: AppBar(
         actions: [
           IconButton(
-              onPressed: () async {
-                try {
-                  Response<List<int>> rs;
-                  rs = await Dio().get<List<int>>(
-                    'https://picsum.photos/200',
-                    options: Options(
-                        responseType:
-                            ResponseType.bytes), // set responseType to `bytes`
-                  );
-                  var imageFile = rs.data!;
-                  var pic = image.decodeImage(imageFile);
-                  pic = image.copyResize(pic!, width: cols, height: rows);
-                  setState(() {
-                    for (var r = 0; r < rows; r++) {
-                      for (int c = 0; c < cols; c++) {
-                        var color = Color(pic!.getPixel(c, r));
-                        colorMatrix[c][r] = color;
-                      }
-                    }
-                  });
-                } catch (e) {
-                  print(e);
-                }
-              },
+              onPressed: ref
+                  .read(boardRepositoryRiverpodProvider.notifier)
+                  .loadRandomPhoto,
               icon: Icon(Icons.file_download)),
         ],
         title: Center(
@@ -138,10 +122,10 @@ class _MyPainterState extends State<MyPainter> {
                     var selectedRow =
                         (details.localPosition.dy / rowHeight).floor();
                     //debugPrint('$selectedCol, $selectedRow');
-                    setState(() {
-                      print('tapup');
-                      colorMatrix[selectedCol][selectedRow] = screenPickerColor;
-                    });
+                    print('tapup');
+                    ref
+                        .read(boardRepositoryRiverpodProvider.notifier)
+                        .setCell(selectedCol, selectedRow, screenPickerColor);
                   },
                   child: CustomPaint(
                     painter: ShapePainter(colorMatrix),
