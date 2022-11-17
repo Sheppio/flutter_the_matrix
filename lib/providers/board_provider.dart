@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:image/image.dart' as image;
 import '../models/cell.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 //part 'items_repository_riverpod.g.dart';
 
@@ -33,6 +34,8 @@ class BoardRepository extends Notifier<List<List<Cell>>> {
 
   var board = [<Cell>[]];
 
+  late WebSocketChannel? wsChannel;
+
   @override
   List<List<Cell>> build() {
     print('BoardRepository build() called.');
@@ -40,6 +43,30 @@ class BoardRepository extends Notifier<List<List<Cell>>> {
     board = List.generate(
         cols, (i) => List.filled(rows, Cell(red: 224, green: 224, blue: 224)),
         growable: false);
+
+    wsChannel = WebSocketChannel.connect(
+      Uri.parse('ws://192.168.1.73:8080/ws'),
+    );
+    wsChannel!.stream.listen((message) {
+      print(message.toString());
+      var tokens = message.toString().split('#');
+      if (tokens.isNotEmpty) {
+        var command = tokens[0];
+        print(tokens);
+        switch (command) {
+          case 'UPDATECELL':
+            print(command);
+            var col = int.parse(tokens[1]);
+            var row = int.parse(tokens[2]);
+            var cell = Cell.fromJson(jsonDecode(tokens[3]));
+            setCell(col, row, cell, shouldReportToServer: false);
+            break;
+          default:
+            print('Command $command not yet implemented');
+        }
+      }
+    });
+
     return board;
   }
 
@@ -67,15 +94,19 @@ class BoardRepository extends Notifier<List<List<Cell>>> {
     return board;
   }
 
-  setCell(int colIndex, int rowIndex, Cell cell) async {
+  setCell(int colIndex, int rowIndex, Cell cell,
+      {shouldReportToServer = true}) async {
     _setCell(colIndex, rowIndex, cell);
     _refreshState();
-    var remoteCell = await _remoteSetCell(colIndex, rowIndex, cell);
-    if (remoteCell != cell) {
-      _setCell(colIndex, rowIndex, remoteCell);
-      _refreshState();
+    if (shouldReportToServer && wsChannel != null) {
+      wsChannel!.sink
+          .add("SETCELL#$colIndex#$rowIndex#${jsonEncode(cell.toJson())}");
     }
-    ;
+    // var remoteCell = await _remoteSetCell(colIndex, rowIndex, cell);
+    // if (remoteCell != cell) {
+    //   _setCell(colIndex, rowIndex, remoteCell);
+    //   _refreshState();
+    // }
   }
 
   _setCell(int colIndex, int rowIndex, Cell cell) {
