@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:image/image.dart' as image;
+import '../models/cell.dart';
 
 //part 'items_repository_riverpod.g.dart';
 
@@ -19,22 +21,24 @@ import 'package:image/image.dart' as image;
 // }
 
 final boardRepositoryRiverpodProvider =
-    NotifierProvider<BoardRepository, List<List<Color>>>(BoardRepository.new);
+    NotifierProvider<BoardRepository, List<List<Cell>>>(BoardRepository.new);
 
-class BoardRepository extends Notifier<List<List<Color>>> {
+class BoardRepository extends Notifier<List<List<Cell>>> {
   ItemsRepositoryRiverpod() {
     debugPrint('ItemsRepositoryRiverpod constrctor called.');
   }
 
-  var cols = 32;
-  var rows = 32;
+  var cols = 16;
+  var rows = 16;
 
-  var board = [<Color>[]];
+  var board = [<Cell>[]];
 
   @override
-  List<List<Color>> build() {
-    debugPrint('ItemsRepositoryRiverpod build() called.');
-    board = List.generate(cols, (i) => List.filled(rows, Colors.grey),
+  List<List<Cell>> build() {
+    print('BoardRepository build() called.');
+    //primaryColors = generatePrimaryColors();
+    board = List.generate(
+        cols, (i) => List.filled(rows, Cell(red: 224, green: 224, blue: 224)),
         growable: false);
     return board;
   }
@@ -44,30 +48,49 @@ class BoardRepository extends Notifier<List<List<Color>>> {
     // items.forEach(((element) {
     //   print(element.toJson());
     // }));
-    state = List<List<Color>>.from(board);
+    state = List<List<Cell>>.from(board);
   }
 
-  setCell(int colIndex, int rowIndex, Color color) async {
-    _setCell(colIndex, rowIndex, color);
+  String getBoardJson() {
+    return jsonEncode(board);
+  }
+
+  List<List<Cell>> getBoardFromJson(String json) {
+    var x = jsonDecode(json);
+    var nb = [<Cell>[]];
+    for (int c = 0; c < x.length; c++) {
+      nb.add(<Cell>[]);
+      for (int r = 0; r < x[c].length; r++) {
+        nb[c].add(Cell.fromJson(x[c][r]));
+      }
+    }
+    return board;
+  }
+
+  setCell(int colIndex, int rowIndex, Cell cell) async {
+    _setCell(colIndex, rowIndex, cell);
     _refreshState();
-    var remoteCol = await _remoteSetCell(colIndex, rowIndex, color);
-    if (remoteCol != color) {
-      _setCell(colIndex, rowIndex, remoteCol);
+    var remoteCell = await _remoteSetCell(colIndex, rowIndex, cell);
+    if (remoteCell != cell) {
+      _setCell(colIndex, rowIndex, remoteCell);
       _refreshState();
     }
     ;
   }
 
-  _setCell(int colIndex, int rowIndex, Color color) {
-    board[colIndex][rowIndex] = color;
+  _setCell(int colIndex, int rowIndex, Cell cell) {
+    board[colIndex][rowIndex] = cell;
   }
 
-  Future<Color> _remoteSetCell(int colIndex, int rowIndex, Color color) async {
+  Future<Cell> _remoteSetCell(int colIndex, int rowIndex, Cell cell) async {
     await Future.delayed(const Duration(milliseconds: 500));
     var rnd = Random();
     return rnd.nextDouble() < 0.5
-        ? color
-        : Colors.primaries[rnd.nextInt(Colors.primaries.length)];
+        ? cell
+        : Cell(
+            red: rnd.nextInt(255),
+            green: rnd.nextInt(255),
+            blue: rnd.nextInt(255));
   }
 
   loadRandomPhoto() async {
@@ -83,7 +106,9 @@ class BoardRepository extends Notifier<List<List<Color>>> {
       pic = image.copyResize(pic!, width: cols, height: rows);
       for (var r = 0; r < rows; r++) {
         for (int c = 0; c < cols; c++) {
-          _setCell(c, r, Color(pic.getPixel(c, r)));
+          var color = Color(pic.getPixel(c, r));
+          _setCell(
+              c, r, Cell(red: color.red, green: color.green, blue: color.blue));
         }
       }
     } catch (e) {

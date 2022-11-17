@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_the_matrix/models/cell.dart';
 import 'package:flutter_the_matrix/providers/board_provider.dart';
 import 'package:flutter_the_matrix/rainbow_gradient.dart';
 import 'dart:io' as io;
@@ -109,7 +110,9 @@ class _MyPainterState extends ConsumerState<MyPainter> {
                         (details.localPosition.dx / colWidth).floor();
                     var selectedRow =
                         (details.localPosition.dy / rowHeight).floor();
-                    screenPickerColor = colorMatrix[selectedCol][selectedRow];
+                    var cell = colorMatrix[selectedCol][selectedRow];
+                    screenPickerColor =
+                        Color.fromARGB(255, cell.red, cell.green, cell.blue);
                   }),
                   onTapUp: (details) {
                     //debugPrint(details.localPosition.toString());
@@ -121,9 +124,13 @@ class _MyPainterState extends ConsumerState<MyPainter> {
                         (details.localPosition.dy / rowHeight).floor();
                     //debugPrint('$selectedCol, $selectedRow');
                     print('tapup');
-                    ref
-                        .read(boardRepositoryRiverpodProvider.notifier)
-                        .setCell(selectedCol, selectedRow, screenPickerColor);
+                    ref.read(boardRepositoryRiverpodProvider.notifier).setCell(
+                        selectedCol,
+                        selectedRow,
+                        Cell(
+                            red: screenPickerColor.red,
+                            green: screenPickerColor.green,
+                            blue: screenPickerColor.blue));
                   },
                   child: CustomPaint(
                     painter: ShapePainter(colorMatrix),
@@ -191,7 +198,7 @@ class _MyPainterState extends ConsumerState<MyPainter> {
 // FOR PAINTING LINES
 class ShapePainter extends CustomPainter {
   ShapePainter(this.colorMatrix);
-  List<List<Color>> colorMatrix;
+  List<List<Cell>> colorMatrix;
   var paintCache = <Color, Paint>{};
 
   var rnd = Random();
@@ -218,21 +225,23 @@ class ShapePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     border.style = PaintingStyle.stroke;
 
-    var fill = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.fill;
+    // var fill = Paint()
+    //   ..color = Colors.red
+    //   ..strokeWidth = 2
+    //   ..strokeCap = StrokeCap.round
+    //   ..style = PaintingStyle.fill;
 
     for (var r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
+        var cell = colorMatrix[c][r];
+        var cellColor = Color.fromARGB(255, cell.red, cell.green, cell.blue);
         drawSegment(
             Offset((c * (segmentSize.width)) + (segmentSize.width / 2),
                 (r * (size.height / rows)) + (segmentSize.height / 2)),
             Size((size.width / cols) * .9, (size.height / rows) * .9),
             canvas,
             border,
-            getFill(colorMatrix[c][r])
+            getFill(cellColor)
             //fills[rnd.nextInt(fills.length)]
             );
       }
